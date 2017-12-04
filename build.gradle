@@ -18,6 +18,7 @@ repositories {
     // Use 'jcenter' for resolving your dependencies.
     // You can declare any Maven/Ivy/file repository here.
     jcenter()
+    mavenCentral()
 }
 
 // In this section you declare the dependencies for your production and test code
@@ -52,17 +53,9 @@ subprojects {
         manifest.attributes provider: 'gradle'
     }
 }
-group 'com.sunny'
-version '1.0-SNAPSHOT'
 
-apply plugin: 'java'
-
-sourceCompatibility = 1.8
-
-repositories {
-    mavenCentral()
-}
-
-dependencies {
-    testCompile group: 'junit', name: 'junit', version: '4.12'
+task hello {
+    doLast {
+        println 'Hello world!'
+    }
 }
