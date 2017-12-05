@@ -8,5 +8,7 @@ public interface Server {
 
     void shutdown();
 
+    void bindServices(Class[] cls);
+
 
 }
