@@ -5,6 +5,7 @@ import com.sunny.rpc.utils.SocketUtil;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * BIO rpc 客户端
@@ -19,6 +20,8 @@ public class BIOClient implements Client {
 
     private Socket socket;
 
+    private LinkedBlockingQueue<Object> msgQueue = new LinkedBlockingQueue();
+
     public BIOClient(int port) throws IOException {
         this.port = port;
         this.socket = new Socket(SocketUtil.getIP(), port);
@@ -29,23 +32,26 @@ public class BIOClient implements Client {
         client.start();
 
         for (int i = 0; i < 100; i++) {
-            client.write("sunlijie >> " + i);
+            client.sendMsg("sunlijie >> " + i);
             Thread.sleep(1000);
         }
     }
 
-    public void start() throws IOException {
-//        read();
+    public void start() throws IOException, InterruptedException {
+        read();
+        writeWorker();
         System.out.println(this.getClass().getName()+" started!");
+
     }
 
     private void read() throws IOException {
-        InputStream inputStream = socket.getInputStream();
-        ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
+
         new Thread(new Runnable() {
             @Override
             public void run() {
                 try {
+                    InputStream inputStream = socket.getInputStream();
+                    ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
                     Object obj;
                     while ((obj = objectInputStream.readObject()) != null) {
                         String msg = (String) obj;
@@ -55,17 +61,47 @@ public class BIOClient implements Client {
                     e.printStackTrace();
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
+                }finally {
+                    try {
+                        socket.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }).start();
     }
 
-    public void write(String msg) throws IOException, InterruptedException {
-        OutputStream outputStream = socket.getOutputStream();
-        ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
-        objectOutputStream.writeObject(msg);
-//        objectOutputStream.close();
-//        outputStream.close();
+    public void sendMsg(String msg){
+        msgQueue.add(msg);
+    }
+    public void writeWorker() throws IOException, InterruptedException {
+
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    OutputStream outputStream = socket.getOutputStream();
+                    ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
+                    Object msg;
+                    while ((msg = msgQueue.take()) !=null) {
+                        objectOutputStream.writeObject(msg);
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }finally {
+                    try {
+                        socket.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }).start();
+
+
     }
 
 }

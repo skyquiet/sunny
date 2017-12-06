@@ -11,7 +11,7 @@ import java.io.IOException;
 
 public interface Client {
 
-    public void start() throws IOException;
+    public void start() throws IOException, InterruptedException;
 
 
 

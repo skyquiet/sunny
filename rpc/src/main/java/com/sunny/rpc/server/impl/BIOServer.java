@@ -73,6 +73,12 @@ public class BIOServer implements Server {
                     e.printStackTrace();
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
+                }finally {
+                    try {
+                        socketClient.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }).start();
