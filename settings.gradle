@@ -17,5 +17,5 @@ include 'services:webservice'
 */
 
 rootProject.name = 'sunny'
-include 'rpc'
+include 'core'
 
