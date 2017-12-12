@@ -19,6 +19,8 @@ public interface Response {
      */
     Object getValue();
 
+    void setValue(Object o);
+
     /**
      * 如果request处理有异常，那么调用该方法return exception 如果request还没处理完或者request处理正常，那么return null
      *
@@ -30,12 +32,16 @@ public interface Response {
      */
     Exception getException();
 
+    void setException(Exception e);
+
     /**
      * 与 Request 的 requestId 相对应
      *
      * @return
      */
     long getRequestId();
+
+    void setRequestId(long requestId);
 
 
     // TODO: 2017/12/7  timeout

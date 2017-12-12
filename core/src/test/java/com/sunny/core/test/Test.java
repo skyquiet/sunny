@@ -47,6 +47,8 @@ public class Test {
 
     @org.junit.Test
     public void testProxy() {
+
+        System.out.println(222);
         ProxyFactory proxyFactory = new JdkProxyFactory();
 
 //        HelloWorld helloWorld = proxyFactory.getProxy(HelloWorld.class, new RefererInvocationHandler(HelloWorld.class));
@@ -61,11 +63,13 @@ public class Test {
 
     }
 
-    public void testClient() throws IOException {
+    public void testClient() throws IOException, InterruptedException {
 
         //1. new client
 
         Client cli = new BIOClient(8989);
+
+        cli.start();
 
         //2.get proxy
         HelloWorld helloWorld =  cli.getProxy(HelloWorld.class);
@@ -78,8 +82,8 @@ public class Test {
 
     public void testServer()  {
 
-        //1. new server
-//        new BIOServer(8989).start();
+//        1. new server
+        new BIOServer(8989).start();
 
         System.out.println(1111111);
 
@@ -90,7 +94,6 @@ public class Test {
 
         Test test = new Test();
         test.testServer();
-
 
     }
 

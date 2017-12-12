@@ -1,7 +1,11 @@
 package com.sunny.core.server.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.sunny.core.registry.HashMapRegistry;
 import com.sunny.core.registry.Registry;
+import com.sunny.core.rpc.DefaultResponse;
+import com.sunny.core.rpc.Request;
+import com.sunny.core.rpc.Response;
 import com.sunny.core.server.Server;
 import com.sunny.core.utils.SocketUtil;
 
@@ -59,24 +63,28 @@ public class BIOServer implements Server {
                 try {
                     ObjectInputStream objectInputStream =  new ObjectInputStream(socketClient.getInputStream());
                     ObjectOutputStream objectOutputStream =  new ObjectOutputStream(socketClient.getOutputStream());
-                    Object object;
-                    while ((object = objectInputStream.readObject()) != null) {
-                        System.out.println("receive :" + object);
-                        objectOutputStream.writeObject("receive :" +object);
+                    Request request;
+                    while ((request = (Request) objectInputStream.readObject()) != null) {
+                        System.out.println("receive :" + JSON.toJSONString(request));
+                        Response response = new DefaultResponse();
+                        response.setValue("receive :" +JSON.toJSONString(request));
+                        objectOutputStream.writeObject(response);
                     }
+                    System.out.println("server listen receive end .");
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
-                }finally {
-                    try {
-                        socketClient.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                }  finally {
+//                    try {
+//                        socketClient.close();
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
                 }
             }
         }).start();
+        System.out.println("end ...");
     }
 
 

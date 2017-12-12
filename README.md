@@ -7,3 +7,9 @@ RPC framework
 3. netty
 4. registry
 5. serialize
+
+
+
+### 坑
+
+不要用junit 调试 socket ，junit 会自动关闭socket

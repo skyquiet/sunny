@@ -13,7 +13,6 @@ public class RpcContext {
 
     private Response response;
 
-
     public Request getRequest() {
         return request;
     }
@@ -29,4 +28,5 @@ public class RpcContext {
     public void setResponse(Response response) {
         this.response = response;
     }
+
 }

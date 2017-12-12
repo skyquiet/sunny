@@ -9,6 +9,7 @@ import com.sunny.core.proxy.impl.JdkProxyFactory;
 import com.sunny.core.rpc.Request;
 import com.sunny.core.rpc.Response;
 import com.sunny.core.rpc.RpcContext;
+import com.sunny.core.service.HelloWorld;
 import com.sunny.core.utils.SocketUtil;
 
 import java.io.*;
@@ -34,7 +35,7 @@ public class BIOClient implements Client {
 
     private final TransactionContainer transactionContainer = new TransactionContainer();
 
-    private LinkedBlockingQueue<Object> sendMsgQueue = new LinkedBlockingQueue();
+    private LinkedBlockingQueue<Request> sendMsgQueue = new LinkedBlockingQueue();
 
     //todo 可以用spring 的注入
     private ProxyFactory proxyFactory = new JdkProxyFactory();
@@ -45,13 +46,26 @@ public class BIOClient implements Client {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-        BIOClient client =  new BIOClient(8989);
-        client.start();
+//        BIOClient client =  new BIOClient(8989);
+//        client.start();
 
-        for (int i = 0; i < 100; i++) {
-            client.sendMsg("sunlijie >> " + i);
-            Thread.sleep(1000);
-        }
+//        for (int i = 0; i < 100; i++) {
+////            client.sendMsg("sunlijie >> " + i);
+//            Thread.sleep(1000);
+//        }
+
+        Client cli = new BIOClient(8989);
+
+        cli.start();
+
+        //2.get proxy
+        HelloWorld helloWorld =  cli.getProxy(HelloWorld.class);
+
+        //3.invoke
+
+        String ret =  helloWorld.say("sunlijie");
+
+        System.out.println(ret);
     }
 
     public void start() throws IOException, InterruptedException {
@@ -70,59 +84,80 @@ public class BIOClient implements Client {
                     InputStream inputStream = socket.getInputStream();
                     ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
                     Object obj;
-                    while ((obj = objectInputStream.readObject()) != null) {
-                        Response response = (Response) obj;
-                        System.out.println(JSON.toJSONString("response : "+response));
-                        transactionContainer.get(response.getRequestId()).setResponse(response);
-                        transactionContainer.notifyAll();
+                    synchronized (transactionContainer) {
+                        while ((obj = objectInputStream.readObject()) != null) {
+                            Response response = (Response) obj;
+                            System.out.println(JSON.toJSONString("response : "+response.getValue()));
+                            RpcContext rpcContext = transactionContainer.get(response.getRequestId());
+                            rpcContext.setResponse(response);
+                            transactionContainer.notifyAll();
+                            System.out.println("cli receive end");
+                        }
                     }
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 }finally {
-                    try {
-                        socket.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+//                    try {
+//                        socket.close();
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
                 }
             }
         }).start();
     }
 
-    public void sendMsg(String msg){
-        sendMsgQueue.add(msg);
-    }
+//    public void sendMsg(String msg){
+//        sendMsgQueue.add(msg);
+//    }
 
-    public Response send(Request msg) throws InterruptedException, ExecutionException {
-        sendMsgQueue.add(msg);
+    public Response send(Request msg)  {
+
         long requestId = msg.getRequestId();
         RpcContext rpcContext = new RpcContext();
 
         rpcContext.setRequest(msg);
         transactionContainer.put(requestId,rpcContext);
-
+        sendMsgQueue.add(msg);
         //future
-
         Callable<Response> callable = new Callable<Response>() {
             @Override
-            public Response call() throws Exception {
-                while (true){
-                    if (transactionContainer.get(requestId).getResponse()!=null) {
-                        return transactionContainer.get(requestId).getResponse();
-                    }else {
-                        transactionContainer.wait();
+            public Response call() {
+                synchronized (transactionContainer) {
+                    System.out.println("notify ");
+                    while (true){
+                        if (transactionContainer.get(requestId).getResponse()!=null) {
+                            return transactionContainer.get(requestId).getResponse();
+                        }else {
+                            try {
+                                transactionContainer.wait();
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
                     }
                 }
+
             }
         };
 
         FutureTask<Response> futureTask =new FutureTask<Response>(callable);
 
-        new Thread(futureTask).start();
+        Thread t =  new Thread(futureTask);
+        t.start();
 
-        return futureTask.get();
+        System.out.println("future start.");
+        try {
+            return futureTask.get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+        return null;
 
     }
 
@@ -142,18 +177,20 @@ public class BIOClient implements Client {
                     ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
                     Object msg;
                     while ((msg = sendMsgQueue.take()) !=null) {
+                        System.out.println("send str:"+JSON.toJSONString(msg));
                         objectOutputStream.writeObject(msg);
                     }
+                    System.out.println("msg = null");
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }finally {
-                    try {
-                        socket.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+//                    try {
+//                        socket.close();
+//                    } catch (IOException e) {
+//                        e.printStackTrace();
+//                    }
                 }
             }
         }).start();

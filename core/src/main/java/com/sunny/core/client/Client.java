@@ -17,7 +17,7 @@ public interface Client {
 
     public void start() throws IOException, InterruptedException;
 
-    public Response send(Request msg) throws InterruptedException, ExecutionException;
+    public Response send(Request msg) ;
 
 
     /**
