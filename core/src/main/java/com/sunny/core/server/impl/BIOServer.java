@@ -22,27 +22,23 @@ public class BIOServer implements Server {
 
     private ServerSocket serverSocket;
 
-    private Registry registry;
+    private Registry registry = new HashMapRegistry();
 
     private int port;
 
-    public BIOServer(int port, Class<? extends Registry> registry) {
+    public BIOServer(int port) {
         try {
             this.serverSocket = new ServerSocket(port);
             //todo registry 要不要搞个单例，另外这个registry应该是单独一个应用啊
-            this.registry = registry.newInstance();
+//            this.registry = registry.newInstance();
             this.port = port;
         } catch (IOException e) {
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (InstantiationException e) {
             e.printStackTrace();
         }
     }
 
     public static void main(String[] args) {
-        new BIOServer(8989, HashMapRegistry.class).start();
+        new BIOServer(8989).start();
     }
 
     @Override

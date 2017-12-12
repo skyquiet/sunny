@@ -1,10 +1,22 @@
 package com.sunny.core.client.impl;
 
+import com.alibaba.fastjson.JSON;
 import com.sunny.core.client.Client;
+import com.sunny.core.client.TransactionContainer;
+import com.sunny.core.proxy.ProxyFactory;
+import com.sunny.core.proxy.RefererInvocationHandler;
+import com.sunny.core.proxy.impl.JdkProxyFactory;
+import com.sunny.core.rpc.Request;
+import com.sunny.core.rpc.Response;
+import com.sunny.core.rpc.RpcContext;
 import com.sunny.core.utils.SocketUtil;
 
 import java.io.*;
+import java.lang.reflect.InvocationHandler;
 import java.net.Socket;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -20,7 +32,12 @@ public class BIOClient implements Client {
 
     private Socket socket;
 
-    private LinkedBlockingQueue<Object> msgQueue = new LinkedBlockingQueue();
+    private final TransactionContainer transactionContainer = new TransactionContainer();
+
+    private LinkedBlockingQueue<Object> sendMsgQueue = new LinkedBlockingQueue();
+
+    //todo 可以用spring 的注入
+    private ProxyFactory proxyFactory = new JdkProxyFactory();
 
     public BIOClient(int port) throws IOException {
         this.port = port;
@@ -54,8 +71,10 @@ public class BIOClient implements Client {
                     ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
                     Object obj;
                     while ((obj = objectInputStream.readObject()) != null) {
-                        String msg = (String) obj;
-                        System.out.println(msg);
+                        Response response = (Response) obj;
+                        System.out.println(JSON.toJSONString("response : "+response));
+                        transactionContainer.get(response.getRequestId()).setResponse(response);
+                        transactionContainer.notifyAll();
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
@@ -73,8 +92,46 @@ public class BIOClient implements Client {
     }
 
     public void sendMsg(String msg){
-        msgQueue.add(msg);
+        sendMsgQueue.add(msg);
     }
+
+    public Response send(Request msg) throws InterruptedException, ExecutionException {
+        sendMsgQueue.add(msg);
+        long requestId = msg.getRequestId();
+        RpcContext rpcContext = new RpcContext();
+
+        rpcContext.setRequest(msg);
+        transactionContainer.put(requestId,rpcContext);
+
+        //future
+
+        Callable<Response> callable = new Callable<Response>() {
+            @Override
+            public Response call() throws Exception {
+                while (true){
+                    if (transactionContainer.get(requestId).getResponse()!=null) {
+                        return transactionContainer.get(requestId).getResponse();
+                    }else {
+                        transactionContainer.wait();
+                    }
+                }
+            }
+        };
+
+        FutureTask<Response> futureTask =new FutureTask<Response>(callable);
+
+        new Thread(futureTask).start();
+
+        return futureTask.get();
+
+    }
+
+    @Override
+    public <T> T getProxy(Class<T> clz) {
+        InvocationHandler invocationHandler = new RefererInvocationHandler(clz,this);
+        return proxyFactory.getProxy(clz, invocationHandler);
+    }
+
     public void writeListener() throws IOException, InterruptedException {
 
         new Thread(new Runnable() {
@@ -84,7 +141,7 @@ public class BIOClient implements Client {
                     OutputStream outputStream = socket.getOutputStream();
                     ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
                     Object msg;
-                    while ((msg = msgQueue.take()) !=null) {
+                    while ((msg = sendMsgQueue.take()) !=null) {
                         objectOutputStream.writeObject(msg);
                     }
                 } catch (InterruptedException e) {

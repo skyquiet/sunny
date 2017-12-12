@@ -1,7 +1,9 @@
 package com.sunny.core.proxy;
 
 import com.alibaba.fastjson.JSON;
+import com.sunny.core.client.Client;
 import com.sunny.core.rpc.DefaultRequest;
+import com.sunny.core.rpc.Response;
 import com.sunny.core.utils.RequestIdGenerator;
 
 import java.lang.reflect.InvocationHandler;
@@ -18,8 +20,11 @@ public class RefererInvocationHandler implements InvocationHandler {
 
     private Class cls;
 
-    public RefererInvocationHandler(Class serviceClass) {
+    private Client client;
+
+    public RefererInvocationHandler(Class serviceClass, Client cli) {
         this.cls = serviceClass;
+        this.client = cli;
     }
 
 
@@ -35,7 +40,6 @@ public class RefererInvocationHandler implements InvocationHandler {
         request.setMethodName(method.getName());
         request.setInterfaceName(cls.getName());
 
-
         //todo log
         System.out.println(JSON.toJSONString(request));
 
@@ -46,23 +50,22 @@ public class RefererInvocationHandler implements InvocationHandler {
 
         //3.发送请求
 
-
-
-
+        Response response = client.send(request);
         //4.处理结果 ，返回接口对应的返回类型
+        if (response.getException() == null){
+            return convertObjectType(response.getValue(), method.getReturnType());
+        }else {
+            /**
+             * 5.处理异常情况
+             *      1.业务异常
+             *      2.框架异常
+             */
+            return response.getException();
+        }
 
-        /**
-         * 5.处理异常情况
-         *      1.业务异常
-         *      2.框架异常
-         */
+    }
 
-
-
-
-
-
-
-        return null;
+    private <T> T convertObjectType(Object o, Class<T> cls) {
+        return (T) o;
     }
 }
