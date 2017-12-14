@@ -1,6 +1,5 @@
 package com.sunny.core.client.impl;
 
-import com.alibaba.fastjson.JSON;
 import com.sunny.core.client.Client;
 import com.sunny.core.client.TransactionContainer;
 import com.sunny.core.proxy.ProxyFactory;
@@ -45,27 +44,37 @@ public class BIOClient implements Client {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
-//        BIOClient client =  new BIOClient(8989);
-//        client.start();
 
-//        for (int i = 0; i < 100; i++) {
-////            client.sendMsg("sunlijie >> " + i);
-//            Thread.sleep(1000);
-//        }
+        for (int j = 0; j < 2; j++) {
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    Client cli = null;
+                    try {
+                        cli = new BIOClient(8989);
+                        cli.start();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
 
-        Client cli = new BIOClient(8989);
+                    //2.get proxy
+                    HelloWorld helloWorld = cli.getProxy(HelloWorld.class);
 
-        cli.start();
+                    //3.invoke
+                    long start = System.currentTimeMillis();
+                    for (int i = 0; i < 10000; i++) {
+                        System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" + i);
+                        String ret = helloWorld.say("sunlijie " + i);
 
-        //2.get proxy
-        HelloWorld helloWorld = cli.getProxy(HelloWorld.class);
+                        System.out.println(Thread.currentThread().getName()+" ret : " + ret);
+                    }
 
-        //3.invoke
-        for (int i = 0; i < 100; i++) {
-            System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"+i);
-            String ret = helloWorld.say("sunlijie");
-
-            System.out.println("ret : "+ret);
+                    System.out.println(Thread.currentThread().getName()+" cost time : " + (System.currentTimeMillis() - start));
+                }
+            }).start();
+            System.out.println(j+">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
         }
 
     }
@@ -74,11 +83,9 @@ public class BIOClient implements Client {
         read();
         writeListener();
         System.out.println(this.getClass().getName() + " started!");
-
     }
 
     private void read() throws IOException {
-
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -89,13 +96,11 @@ public class BIOClient implements Client {
 
                     while ((obj = objectInputStream.readObject()) != null) {
                         Response response = (Response) obj;
-                        System.out.println(JSON.toJSONString("response : " + response.getValue()));
                         RpcContext rpcContext = transactionContainer.get(response.getRequestId());
                         rpcContext.setResponse(response);
                         synchronized (lock) {
                             lock.notifyAll();
                         }
-                        System.out.println("cli receive end");
                     }
 
                 } catch (IOException e) {
@@ -131,7 +136,6 @@ public class BIOClient implements Client {
             @Override
             public Response call() {
                 synchronized (lock) {
-                    System.out.println("notify ");
                     while (true) {
                         if (transactionContainer.get(requestId).getResponse() != null) {
                             return transactionContainer.get(requestId).getResponse();
@@ -155,9 +159,7 @@ public class BIOClient implements Client {
         Thread t = new Thread(futureTask);
         t.start();
 
-        System.out.println("future start.");
         try {
-            System.out.println("futureTask.get() : "+JSON.toJSONString(futureTask.get()));
             return futureTask.get();
         } catch (InterruptedException e) {
             e.printStackTrace();
@@ -184,10 +186,8 @@ public class BIOClient implements Client {
                     ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
                     Object msg;
                     while ((msg = sendMsgQueue.take()) != null) {
-                        System.out.println("send str:" + JSON.toJSONString(msg));
                         objectOutputStream.writeObject(msg);
                     }
-                    System.out.println("msg = null");
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 } catch (IOException e) {

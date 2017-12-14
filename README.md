@@ -7,6 +7,7 @@ RPC framework
 3. netty
 4. registry
 5. serialize
+6. 客户端多线程
 
 
 

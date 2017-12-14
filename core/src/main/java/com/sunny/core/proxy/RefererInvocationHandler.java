@@ -41,7 +41,6 @@ public class RefererInvocationHandler implements InvocationHandler {
         request.setInterfaceName(cls.getName());
 
         //todo log
-        System.out.println(JSON.toJSONString(request));
 
         /**
          * 2. 序列化

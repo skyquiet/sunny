@@ -2,6 +2,7 @@ package com.sunny.core.client;
 
 import com.sunny.core.rpc.RpcContext;
 
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -15,7 +16,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class TransactionContainer {
 
-    private ConcurrentHashMap<Long, RpcContext> transactionContainer = new ConcurrentHashMap<>();
+    private Map<Long, RpcContext> transactionContainer = new ConcurrentHashMap<>();
+//    private ConcurrentHashMap<Long, RpcContext> transactionContainer = new ConcurrentHashMap<>();
 
 
     public void put(Long requestId, RpcContext rpcContext) {

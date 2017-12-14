@@ -21,39 +21,40 @@ public class DefaultRequest implements Serializable, Request {
 
     @Override
     public String getInterfaceName() {
-        return null;
-    }
-
-    @Override
-    public String getMethodName() {
-        return null;
-    }
-
-    @Override
-    public Object[] getArguments() {
-        return new Object[0];
-    }
-
-    @Override
-    public long getRequestId() {
-        return 0;
+        return interfaceName;
     }
 
     public void setInterfaceName(String interfaceName) {
         this.interfaceName = interfaceName;
     }
 
+    @Override
+    public String getMethodName() {
+        return methodName;
+    }
+
     public void setMethodName(String methodName) {
         this.methodName = methodName;
+    }
+
+    @Override
+    public Object[] getArguments() {
+        return arguments;
     }
 
     public void setArguments(Object[] arguments) {
         this.arguments = arguments;
     }
 
+    @Override
+    public long getRequestId() {
+        return requestId;
+    }
+
     public void setRequestId(long requestId) {
         this.requestId = requestId;
     }
+
     @Override
     public String toString() {
         return interfaceName + "." + methodName +" requestId=" + requestId;
