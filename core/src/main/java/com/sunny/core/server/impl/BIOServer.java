@@ -65,7 +65,7 @@ public class BIOServer implements Server {
                     ObjectOutputStream objectOutputStream =  new ObjectOutputStream(socketClient.getOutputStream());
                     Request request;
                     while ((request = (Request) objectInputStream.readObject()) != null) {
-                        System.out.println("receive :" + JSON.toJSONString(request));
+                        System.out.println("receive .....................");
                         Response response = new DefaultResponse();
                         response.setValue("receive :" +JSON.toJSONString(request));
                         objectOutputStream.writeObject(response);

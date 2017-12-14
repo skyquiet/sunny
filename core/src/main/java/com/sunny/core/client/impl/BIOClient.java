@@ -29,12 +29,11 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class BIOClient implements Client {
 
-    private int port;
-
-    private Socket socket;
-
     private final TransactionContainer transactionContainer = new TransactionContainer();
 
+    private Object lock = new Object();
+    private int port;
+    private Socket socket;
     private LinkedBlockingQueue<Request> sendMsgQueue = new LinkedBlockingQueue();
 
     //todo 可以用spring 的注入
@@ -59,19 +58,22 @@ public class BIOClient implements Client {
         cli.start();
 
         //2.get proxy
-        HelloWorld helloWorld =  cli.getProxy(HelloWorld.class);
+        HelloWorld helloWorld = cli.getProxy(HelloWorld.class);
 
         //3.invoke
+        for (int i = 0; i < 100; i++) {
+            System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>"+i);
+            String ret = helloWorld.say("sunlijie");
 
-        String ret =  helloWorld.say("sunlijie");
+            System.out.println("ret : "+ret);
+        }
 
-        System.out.println(ret);
     }
 
     public void start() throws IOException, InterruptedException {
         read();
         writeListener();
-        System.out.println(this.getClass().getName()+" started!");
+        System.out.println(this.getClass().getName() + " started!");
 
     }
 
@@ -84,22 +86,23 @@ public class BIOClient implements Client {
                     InputStream inputStream = socket.getInputStream();
                     ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
                     Object obj;
-                    synchronized (transactionContainer) {
-                        while ((obj = objectInputStream.readObject()) != null) {
-                            Response response = (Response) obj;
-                            System.out.println(JSON.toJSONString("response : "+response.getValue()));
-                            RpcContext rpcContext = transactionContainer.get(response.getRequestId());
-                            rpcContext.setResponse(response);
-                            transactionContainer.notifyAll();
-                            System.out.println("cli receive end");
+
+                    while ((obj = objectInputStream.readObject()) != null) {
+                        Response response = (Response) obj;
+                        System.out.println(JSON.toJSONString("response : " + response.getValue()));
+                        RpcContext rpcContext = transactionContainer.get(response.getRequestId());
+                        rpcContext.setResponse(response);
+                        synchronized (lock) {
+                            lock.notifyAll();
                         }
+                        System.out.println("cli receive end");
                     }
 
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
-                }finally {
+                } finally {
 //                    try {
 //                        socket.close();
 //                    } catch (IOException e) {
@@ -114,26 +117,29 @@ public class BIOClient implements Client {
 //        sendMsgQueue.add(msg);
 //    }
 
-    public Response send(Request msg)  {
+    public Response send(Request msg) {
 
         long requestId = msg.getRequestId();
         RpcContext rpcContext = new RpcContext();
 
         rpcContext.setRequest(msg);
-        transactionContainer.put(requestId,rpcContext);
+        transactionContainer.put(requestId, rpcContext);
         sendMsgQueue.add(msg);
+
         //future
         Callable<Response> callable = new Callable<Response>() {
             @Override
             public Response call() {
-                synchronized (transactionContainer) {
+                synchronized (lock) {
                     System.out.println("notify ");
-                    while (true){
-                        if (transactionContainer.get(requestId).getResponse()!=null) {
+                    while (true) {
+                        if (transactionContainer.get(requestId).getResponse() != null) {
                             return transactionContainer.get(requestId).getResponse();
-                        }else {
+                        } else {
                             try {
-                                transactionContainer.wait();
+                                synchronized (lock) {
+                                    lock.wait();
+                                }
                             } catch (InterruptedException e) {
                                 e.printStackTrace();
                             }
@@ -144,26 +150,27 @@ public class BIOClient implements Client {
             }
         };
 
-        FutureTask<Response> futureTask =new FutureTask<Response>(callable);
+        FutureTask<Response> futureTask = new FutureTask<Response>(callable);
 
-        Thread t =  new Thread(futureTask);
+        Thread t = new Thread(futureTask);
         t.start();
 
         System.out.println("future start.");
         try {
+            System.out.println("futureTask.get() : "+JSON.toJSONString(futureTask.get()));
             return futureTask.get();
         } catch (InterruptedException e) {
             e.printStackTrace();
         } catch (ExecutionException e) {
             e.printStackTrace();
         }
-        return null;
 
+        return null;
     }
 
     @Override
     public <T> T getProxy(Class<T> clz) {
-        InvocationHandler invocationHandler = new RefererInvocationHandler(clz,this);
+        InvocationHandler invocationHandler = new RefererInvocationHandler(clz, this);
         return proxyFactory.getProxy(clz, invocationHandler);
     }
 
@@ -176,8 +183,8 @@ public class BIOClient implements Client {
                     OutputStream outputStream = socket.getOutputStream();
                     ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
                     Object msg;
-                    while ((msg = sendMsgQueue.take()) !=null) {
-                        System.out.println("send str:"+JSON.toJSONString(msg));
+                    while ((msg = sendMsgQueue.take()) != null) {
+                        System.out.println("send str:" + JSON.toJSONString(msg));
                         objectOutputStream.writeObject(msg);
                     }
                     System.out.println("msg = null");
@@ -185,7 +192,7 @@ public class BIOClient implements Client {
                     e.printStackTrace();
                 } catch (IOException e) {
                     e.printStackTrace();
-                }finally {
+                } finally {
 //                    try {
 //                        socket.close();
 //                    } catch (IOException e) {
