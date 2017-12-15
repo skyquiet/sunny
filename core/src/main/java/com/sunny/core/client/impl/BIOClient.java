@@ -108,6 +108,7 @@ public class BIOClient implements Client {
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 } finally {
+                    // TODO: 2017/12/15 思考
 //                    try {
 //                        socket.close();
 //                    } catch (IOException e) {
@@ -118,10 +119,11 @@ public class BIOClient implements Client {
         }).start();
     }
 
-//    public void sendMsg(String msg){
-//        sendMsgQueue.add(msg);
-//    }
-
+    /**
+     * 同步rpc请求
+     * @param msg
+     * @return
+     */
     public Response send(Request msg) {
 
         long requestId = msg.getRequestId();
@@ -138,7 +140,11 @@ public class BIOClient implements Client {
                 synchronized (lock) {
                     while (true) {
                         if (transactionContainer.get(requestId).getResponse() != null) {
-                            return transactionContainer.get(requestId).getResponse();
+                            Response response = (Response) transactionContainer.get(requestId);
+                            //从容器中删除
+                            transactionContainer.remove(requestId);
+                            //返回客户端
+                            return response;
                         } else {
                             try {
                                 synchronized (lock) {
@@ -154,6 +160,12 @@ public class BIOClient implements Client {
             }
         };
 
+        /**
+         * 如果是异步调用的话，这里把future返回回去就可以，让客户端也用FutureTask<Response> 来做returnType
+         * todo 可以使用 ListenableFuture  这个东西应该是google 的
+         * dubbo 的异步请求确实好繁琐
+         * 参考 ：http://www.10tiao.com/html/240/201604/2649254387/1.html
+         */
         FutureTask<Response> futureTask = new FutureTask<Response>(callable);
 
         Thread t = new Thread(futureTask);
