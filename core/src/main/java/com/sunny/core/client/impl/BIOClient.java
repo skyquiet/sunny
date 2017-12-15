@@ -8,7 +8,6 @@ import com.sunny.core.proxy.impl.JdkProxyFactory;
 import com.sunny.core.rpc.Request;
 import com.sunny.core.rpc.Response;
 import com.sunny.core.rpc.RpcContext;
-import com.sunny.core.service.HelloWorld;
 import com.sunny.core.utils.SocketUtil;
 
 import java.io.*;
@@ -41,42 +40,6 @@ public class BIOClient implements Client {
     public BIOClient(int port) throws IOException {
         this.port = port;
         this.socket = new Socket(SocketUtil.getIP(), port);
-    }
-
-    public static void main(String[] args) throws IOException, InterruptedException {
-
-        for (int j = 0; j < 2; j++) {
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    Client cli = null;
-                    try {
-                        cli = new BIOClient(8989);
-                        cli.start();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
-
-                    //2.get proxy
-                    HelloWorld helloWorld = cli.getProxy(HelloWorld.class);
-
-                    //3.invoke
-                    long start = System.currentTimeMillis();
-                    for (int i = 0; i < 10000; i++) {
-                        System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" + i);
-                        String ret = helloWorld.say("sunlijie " + i);
-
-                        System.out.println(Thread.currentThread().getName()+" ret : " + ret);
-                    }
-
-                    System.out.println(Thread.currentThread().getName()+" cost time : " + (System.currentTimeMillis() - start));
-                }
-            }).start();
-            System.out.println(j+">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
-        }
-
     }
 
     public void start() throws IOException, InterruptedException {
@@ -121,6 +84,7 @@ public class BIOClient implements Client {
 
     /**
      * 同步rpc请求
+     *
      * @param msg
      * @return
      */
@@ -133,6 +97,24 @@ public class BIOClient implements Client {
         transactionContainer.put(requestId, rpcContext);
         sendMsgQueue.add(msg);
 
+
+        //if method async ，需要从配置里面解析，这个留到做spring支持的时候做
+
+        boolean isAsync = true;
+
+        if (isAsync) {
+
+            //返回一个包装类，然后在包装类上面设置callback
+
+            //添加@Asyncable注解
+
+            //解析注解，生成异步接口方法，异步调用的时候支持添加callback
+        } else {
+            //同步调用
+
+        }
+
+
         //future
         Callable<Response> callable = new Callable<Response>() {
             @Override
@@ -140,7 +122,7 @@ public class BIOClient implements Client {
                 synchronized (lock) {
                     while (true) {
                         if (transactionContainer.get(requestId).getResponse() != null) {
-                            Response response = (Response) transactionContainer.get(requestId);
+                            Response response = (Response) transactionContainer.get(requestId).getResponse();
                             //从容器中删除
                             transactionContainer.remove(requestId);
                             //返回客户端
@@ -213,8 +195,6 @@ public class BIOClient implements Client {
                 }
             }
         }).start();
-
-
     }
 
 }

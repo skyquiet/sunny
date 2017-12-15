@@ -52,12 +52,6 @@ public class BIOServer implements Server {
         }
     }
 
-    public static void main(String[] args) {
-
-        Server server = new BIOServer(8989);
-        server.bindServices(HelloWorld.class, HelloWorldImpl.class);
-        server.start();
-    }
 
     @Override
     public void start() {
