@@ -2,15 +2,17 @@ package com.sunny.core.client.impl;
 
 import com.sunny.core.client.Client;
 import com.sunny.core.client.TransactionContainer;
+import com.sunny.core.proxy.ConsumerInvocationHandler;
 import com.sunny.core.proxy.ProxyFactory;
-import com.sunny.core.proxy.RefererInvocationHandler;
 import com.sunny.core.proxy.impl.JdkProxyFactory;
 import com.sunny.core.rpc.Request;
 import com.sunny.core.rpc.Response;
 import com.sunny.core.rpc.RpcContext;
 import com.sunny.core.utils.SocketUtil;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.lang.reflect.InvocationHandler;
 import java.net.Socket;
 import java.util.concurrent.Callable;
@@ -40,25 +42,45 @@ public class BIOClient implements Client {
     public BIOClient(int port) throws IOException {
         this.port = port;
         this.socket = new Socket(SocketUtil.getIP(), port);
+        //
+        this.socket.setKeepAlive(true);
     }
 
-    public void start() throws IOException, InterruptedException {
+    public void start() {
         read();
         writeListener();
         System.out.println(this.getClass().getName() + " started!");
     }
 
-    private void read() throws IOException {
+    @Override
+    public void stop() {
+
+    }
+
+    @Override
+    public void shutdown() {
+
+    }
+
+    /**
+     * 监听socket输入流
+     *
+     * @throws IOException
+     */
+    private void read() {
         new Thread(new Runnable() {
             @Override
             public void run() {
+                ObjectInputStream objectInputStream = null;
                 try {
-                    InputStream inputStream = socket.getInputStream();
-                    ObjectInputStream objectInputStream = new ObjectInputStream(inputStream);
+                    objectInputStream = new ObjectInputStream(socket.getInputStream());
                     Object obj;
-
                     while ((obj = objectInputStream.readObject()) != null) {
+                        /**
+                         * todo 反序列化 解析出response
+                         */
                         Response response = (Response) obj;
+                        //todo 可以优化为获取rpcContext 上的锁，因为现在的实现方式相当于
                         RpcContext rpcContext = transactionContainer.get(response.getRequestId());
                         rpcContext.setResponse(response);
                         synchronized (lock) {
@@ -71,12 +93,13 @@ public class BIOClient implements Client {
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
                 } finally {
-                    // TODO: 2017/12/15 思考
-//                    try {
-//                        socket.close();
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
+                    // 虽然Java有自动内存回收机制，但是如果是数据库连接、网络连接、文件操作等，不close是不会被回收的，属于不正确的代码。
+                    try {
+                        objectInputStream.close();
+                        socket.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }).start();
@@ -88,6 +111,7 @@ public class BIOClient implements Client {
      * @param msg
      * @return
      */
+    @Override
     public Response send(Request msg) {
 
         long requestId = msg.getRequestId();
@@ -95,6 +119,10 @@ public class BIOClient implements Client {
 
         rpcContext.setRequest(msg);
         transactionContainer.put(requestId, rpcContext);
+
+        /**
+         * TODO 序列化  header + body
+         */
         sendMsgQueue.add(msg);
 
 
@@ -119,26 +147,23 @@ public class BIOClient implements Client {
         Callable<Response> callable = new Callable<Response>() {
             @Override
             public Response call() {
-                synchronized (lock) {
-                    while (true) {
-                        if (transactionContainer.get(requestId).getResponse() != null) {
-                            Response response = (Response) transactionContainer.get(requestId).getResponse();
-                            //从容器中删除
-                            transactionContainer.remove(requestId);
-                            //返回客户端
-                            return response;
-                        } else {
-                            try {
-                                synchronized (lock) {
-                                    lock.wait();
-                                }
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
+                while (true) {
+                    if (transactionContainer.get(requestId).getResponse() != null) {
+                        Response response = (Response) transactionContainer.get(requestId).getResponse();
+                        //从容器中删除
+                        transactionContainer.remove(requestId);
+                        //返回客户端
+                        return response;
+                    } else {
+                        try {
+                            synchronized (lock) {
+                                lock.wait();
                             }
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
                         }
                     }
                 }
-
             }
         };
 
@@ -164,20 +189,33 @@ public class BIOClient implements Client {
         return null;
     }
 
+    /**
+     * 获取接口代理，目前只支持jdk动态代理
+     *
+     * @param clz
+     * @param <T>
+     * @return
+     */
     @Override
     public <T> T getProxy(Class<T> clz) {
-        InvocationHandler invocationHandler = new RefererInvocationHandler(clz, this);
+        InvocationHandler invocationHandler = new ConsumerInvocationHandler(clz, this);
         return proxyFactory.getProxy(clz, invocationHandler);
     }
 
-    public void writeListener() throws IOException, InterruptedException {
+    /**
+     * 监听消息队列，发送请求到服务端
+     *
+     * @throws IOException
+     * @throws InterruptedException
+     */
+    public void writeListener() {
 
         new Thread(new Runnable() {
             @Override
             public void run() {
+                ObjectOutputStream objectOutputStream = null;
                 try {
-                    OutputStream outputStream = socket.getOutputStream();
-                    ObjectOutputStream objectOutputStream = new ObjectOutputStream(outputStream);
+                    objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
                     Object msg;
                     while ((msg = sendMsgQueue.take()) != null) {
                         objectOutputStream.writeObject(msg);
@@ -187,14 +225,14 @@ public class BIOClient implements Client {
                 } catch (IOException e) {
                     e.printStackTrace();
                 } finally {
-//                    try {
-//                        socket.close();
-//                    } catch (IOException e) {
-//                        e.printStackTrace();
-//                    }
+                    try {
+                        objectOutputStream.close();
+                        socket.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             }
         }).start();
     }
-
 }

@@ -10,19 +10,19 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 
 /**
- * todo Description
+ * 客户端proxy调用handler
  *
  * @author: sunlijie
  * CreateDate: 2017/12/7 17:38
  */
 
-public class RefererInvocationHandler implements InvocationHandler {
+public class ConsumerInvocationHandler implements InvocationHandler {
 
     private Class cls;
 
     private Client client;
 
-    public RefererInvocationHandler(Class serviceClass, Client cli) {
+    public ConsumerInvocationHandler(Class serviceClass, Client cli) {
         this.cls = serviceClass;
         this.client = cli;
     }

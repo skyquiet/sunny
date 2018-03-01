@@ -19,7 +19,7 @@ import java.io.IOException;
 public class BIOTest {
 
     public  void startClient() {
-        for (int j = 0; j < 2; j++) {
+        for (int j = 0; j < 500; j++) {
             new Thread(new Runnable() {
                 @Override
                 public void run() {
@@ -29,8 +29,6 @@ public class BIOTest {
                         cli.start();
                     } catch (IOException e) {
                         e.printStackTrace();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
                     }
 
                     //2.get proxy
@@ -38,16 +36,20 @@ public class BIOTest {
 
                     //3.invoke
                     long start = System.currentTimeMillis();
-                    for (int i = 0; i < 10000; i++) {
-                        System.out.println(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" + i);
+                    for (int i = 0; i < 100; i++) {
+//                        System.out.println(Thread.currentThread().getName()+">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" + i);
                         String ret = helloWorld.say("sunlijie " + i);
 
-                        System.out.println(Thread.currentThread().getName()+" ret : " + ret);
+                        if (!ret.equals("hello sunlijie " + i + " !")) {
+                            System.out.println(Thread.currentThread().getName()+" ============== " + i);
+                            throw new RuntimeException("入参与结果不匹配！");
+                        }
+//                        System.out.println(Thread.currentThread().getName()+" ret : " + ret);
                     }
 
                     System.out.println(Thread.currentThread().getName()+" cost time : " + (System.currentTimeMillis() - start));
                 }
-            }).start();
+            },"t-"+j).start();
             System.out.println(j+">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
         }
     }

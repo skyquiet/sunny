@@ -15,7 +15,11 @@ import java.util.concurrent.ExecutionException;
 
 public interface Client {
 
-    public void start() throws IOException, InterruptedException;
+    public void start();
+
+    void stop();
+
+    void shutdown();
 
     public Response send(Request msg) ;
 

@@ -77,12 +77,17 @@ public class BIOServer implements Server {
                     Request request;
                     while ((request = (Request) objectInputStream.readObject()) != null) {
 
+                        /**
+                         * todo 反序列化 解析出 请求对象
+                         */
+
                         //反射调用接口方法
                         Object value = invokeMethod(request);
 
                         Response response = new DefaultResponse();
                         response.setRequestId(request.getRequestId());
                         response.setValue(value);
+                        //序列化 返回给客户端
                         objectOutputStream.writeObject(response);
                     }
                 } catch (IOException e) {
