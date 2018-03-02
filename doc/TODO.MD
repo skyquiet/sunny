@@ -1,5 +1,5 @@
 ##TODO
-    1. log
+    1. log  done
     2. spring support
     3. netty
     4. registry  ##
@@ -14,4 +14,5 @@
         2.provider 与zk 建立1个连接
         3.consumer 与 每个 provider 通过netty 连接池建立连接，并保持心跳
         4.consumer、provider 与zk之间是不是需要保持心跳？
+            这个应该是注册临时节点，用zk的机制，具体心跳管理，要写代码的时候看实现
  

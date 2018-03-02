@@ -6,6 +6,8 @@ import com.sunny.core.proxy.ProxyFactory;
 import com.sunny.core.proxy.impl.JdkProxyFactory;
 import com.sunny.core.server.impl.BIOServer;
 import com.sunny.core.service.HelloWorld;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -19,6 +21,8 @@ import java.util.List;
  */
 
 public class Test {
+
+    private final static Logger logger = LoggerFactory.getLogger(Test.class);
 
     private int port = 112;
 
@@ -89,8 +93,9 @@ public class Test {
 
     public static void main(String[] args) {
 
-        Test test = new Test();
-        test.testServer();
+        logger.debug("sunlijie {}","ni hao!");
+//        Test test = new Test();
+//        test.testServer();
     }
 
 }

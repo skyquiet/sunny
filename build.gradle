@@ -44,10 +44,19 @@ subprojects {
     }
 
     dependencies {
+
         testCompile 'junit:junit:4.11'
+
+//        compile group: 'com.google.guava', name: 'guava', version: '11.0.2'
+
+//        compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+
+        compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
+
+
     }
 
-    version = '1.0'
+    version = '1.0.0'
 
     jar {
         manifest.attributes provider: 'gradle'
